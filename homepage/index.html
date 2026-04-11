@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EveloDB — High-Performance Data Storage</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cyan:        #06b6d4;
+            --cyan-light:  #22d3ee;
+            --cyan-dim:    rgba(6,182,212,0.10);
+            --cyan-border: rgba(6,182,212,0.22);
+
+            --bg:          #060810;
+            --surface:     #0b0e18;
+            --surface-2:   #0f1320;
+            --surface-3:   #131828;
+
+            --border:      rgba(255,255,255,0.06);
+            --border-md:   rgba(255,255,255,0.10);
+            --border-lg:   rgba(255,255,255,0.16);
+
+            --text:        #e8edf8;
+            --text-dim:    #8a94b0;
+            --text-muted:  #4e566e;
+
+            --r:  4px;
+            --r2: 8px;
+
+            --mono: 'JetBrains Mono', monospace;
+            --sans: 'Poppins', sans-serif;
+        }
+
+        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+        html { scroll-behavior:smooth; }
+
+        body {
+            font-family:var(--sans);
+            background:var(--bg);
+            color:var(--text);
+            line-height:1.6;
+            overflow-x:hidden;
+            -webkit-font-smoothing:antialiased;
+        }
+
+        /* Noise */
+        body::after {
+            content:''; position:fixed; inset:0; pointer-events:none; z-index:9999; opacity:0.45;
+            background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+        }
+
+        /* Ambient */
+        .amb { position:fixed; border-radius:50%; pointer-events:none; z-index:0; filter:blur(130px); }
+        .amb-a { width:700px; height:700px; top:-200px; right:-100px;
+            background:radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 70%); }
+        .amb-b { width:500px; height:500px; bottom:-150px; left:-80px;
+            background:radial-gradient(ellipse, rgba(6,182,212,0.04) 0%, transparent 70%); }
+
+        /* ── Header ── */
+        header {
+            position:fixed; top:0; left:0; right:0; z-index:100;
+            height:58px; display:flex; align-items:center; justify-content:space-between;
+            padding:0 5%;
+            background:rgba(6,8,16,0.88);
+            backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+            border-bottom:1px solid var(--border);
+        }
+
+        .logo { display:flex; align-items:center; gap:8px; text-decoration:none; }
+        .logo img { width:24px; height:24px; object-fit:contain; }
+        .logo-text { font-size:0.95rem; font-weight:700; color:var(--text); letter-spacing:-0.02em; }
+        .logo-text em { font-style:normal; color:var(--cyan); }
+
+        nav { display:flex; align-items:center; gap:2rem; }
+        nav a { font-size:0.79rem; font-weight:500; color:var(--text-dim); text-decoration:none; letter-spacing:0.01em; transition:color .2s; }
+        nav a:hover { color:var(--text); }
+
+        .hd-right { display:flex; gap:8px; align-items:center; }
+
+        .btn {
+            display:inline-flex; align-items:center; gap:6px;
+            font-family:var(--sans); font-size:0.78rem; font-weight:600;
+            padding:0.42rem 1.05rem; border-radius:var(--r);
+            text-decoration:none; letter-spacing:0.01em;
+            transition:all .18s ease; cursor:pointer; border:none;
+        }
+        .btn-ghost { background:transparent; color:var(--text-dim); border:1px solid var(--border-md); }
+        .btn-ghost:hover { border-color:var(--border-lg); color:var(--text); }
+        .btn-cyan { background:var(--cyan); color:#03111a; }
+        .btn-cyan:hover { background:var(--cyan-light); transform:translateY(-1px); }
+
+        /* ── Hero ── */
+        .hero {
+            padding:130px 5% 70px;
+            max-width:1200px; margin:0 auto;
+            position:relative; z-index:1;
+        }
+
+        .badge {
+            display:inline-flex; align-items:center; gap:8px;
+            font-size:0.68rem; font-weight:600; letter-spacing:0.1em; text-transform:uppercase;
+            color:var(--cyan); margin-bottom:26px;
+            opacity:0; animation:up .6s ease forwards .05s;
+        }
+        .badge-dot {
+            width:6px; height:6px; border-radius:50%;
+            background:var(--cyan); box-shadow:0 0 8px var(--cyan);
+            animation:blink 2.4s ease infinite;
+        }
+
+        .hero h1 {
+            font-size:clamp(2.4rem,5.5vw,4rem); font-weight:800;
+            line-height:1.08; letter-spacing:-0.04em;
+            max-width:680px; margin-bottom:22px;
+            opacity:0; animation:up .6s ease forwards .15s;
+        }
+        .hero h1 em { font-style:normal; color:var(--cyan); }
+
+        .hero-sub {
+            font-size:0.97rem; color:var(--text-dim);
+            max-width:500px; line-height:1.75; font-weight:400; margin-bottom:36px;
+            opacity:0; animation:up .6s ease forwards .25s;
+        }
+
+        .hero-cta {
+            display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+            opacity:0; animation:up .6s ease forwards .35s;
+        }
+        .hero-cta .btn { font-size:0.82rem; padding:0.52rem 1.2rem; }
+
+        /* stat strip */
+        .stat-strip {
+            display:flex; margin-top:60px;
+            border:1px solid var(--border-md); border-radius:var(--r2); overflow:hidden;
+            opacity:0; animation:up .6s ease forwards .45s;
+        }
+        .stat-item {
+            flex:1; padding:20px 26px;
+            background:var(--surface);
+            border-right:1px solid var(--border);
+            transition:background .2s;
+        }
+        .stat-item:last-child { border-right:none; }
+        .stat-item:hover { background:var(--surface-2); }
+        .stat-val { font-size:1.5rem; font-weight:700; letter-spacing:-0.04em; line-height:1; }
+        .stat-val em { font-style:normal; color:var(--cyan); }
+        .stat-label { font-size:0.68rem; color:var(--text-muted); font-weight:500; margin-top:5px; letter-spacing:0.04em; text-transform:uppercase; }
+
+        /* ── Sections ── */
+        .section { padding:80px 5%; max-width:1200px; margin:0 auto; position:relative; z-index:1; }
+
+        .sec-eye { font-size:0.67rem; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--cyan); margin-bottom:10px; }
+        .sec-title { font-size:clamp(1.5rem,3vw,2.15rem); font-weight:700; letter-spacing:-0.035em; line-height:1.15; margin-bottom:10px; }
+        .sec-sub { font-size:0.88rem; color:var(--text-dim); max-width:460px; line-height:1.75; margin-bottom:42px; }
+
+        /* ── Code panels ── */
+        .code-wrap {
+            display:grid; grid-template-columns:1fr 1fr;
+            border:1px solid var(--border-md); border-radius:var(--r2); overflow:hidden;
+        }
+        .code-panel { background:var(--surface); }
+        .code-panel.right { background:var(--surface-2); border-left:1px solid var(--border); }
+
+        .panel-bar {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:10px 16px; border-bottom:1px solid var(--border);
+        }
+        .panel-dots { display:flex; gap:5px; }
+        .pd { width:9px; height:9px; border-radius:50%; }
+        .pd-r { background:#ff5f56; opacity:.5; }
+        .pd-y { background:#ffbd2e; opacity:.5; }
+        .pd-g { background:#27c93f; opacity:.5; }
+        .panel-tag { font-family:var(--mono); font-size:0.66rem; color:var(--text-muted); letter-spacing:0.05em; text-transform:uppercase; }
+        .panel-badge { font-family:var(--mono); font-size:0.64rem; padding:2px 7px; border-radius:3px; }
+        .badge-pkg { color:var(--cyan); background:var(--cyan-dim); border:1px solid var(--cyan-border); }
+        .badge-ok  { color:#4ade80; background:rgba(74,222,128,.08); border:1px solid rgba(74,222,128,.2); }
+
+        .code-body { padding:20px 20px 24px; font-family:var(--mono); font-size:0.75rem; line-height:1.85; overflow-x:auto; }
+        .code-body pre { white-space:pre; }
+
+        .k  { color:#c792ea; }
+        .s  { color:#a5d6ff; }
+        .n  { color:#f78c6c; }
+        .c  { color:#40506a; font-style:italic; }
+        .f  { color:#7dd3fc; }
+        .p  { color:#89ddff; }
+        .ak { color:var(--cyan); }
+        .ok { color:#4ade80; font-weight:600; }
+        .lt { color:#f78c6c; }
+
+        /* ── Features ── */
+        .feat-grid {
+            display:grid; grid-template-columns:repeat(3,1fr);
+            border:1px solid var(--border-md); border-radius:var(--r2); overflow:hidden;
+        }
+        .feat-cell {
+            background:var(--surface); padding:28px 26px;
+            border-right:1px solid var(--border); border-bottom:1px solid var(--border);
+            position:relative; overflow:hidden; transition:background .2s;
+        }
+        .feat-cell:nth-child(3n) { border-right:none; }
+        .feat-cell:nth-child(n+4) { border-bottom:none; }
+        .feat-cell:hover { background:var(--surface-2); }
+        .feat-cell::before {
+            content:''; position:absolute; top:0; left:0; right:0; height:1px;
+            background:linear-gradient(90deg, transparent, var(--cyan), transparent);
+            opacity:0; transition:opacity .3s;
+        }
+        .feat-cell:hover::before { opacity:0.55; }
+
+        .feat-icon {
+            width:34px; height:34px; background:var(--cyan-dim); border:1px solid var(--cyan-border);
+            border-radius:var(--r); display:flex; align-items:center; justify-content:center;
+            font-size:0.88rem; margin-bottom:16px;
+        }
+        .feat-title { font-size:0.86rem; font-weight:600; color:var(--text); margin-bottom:7px; letter-spacing:-0.01em; }
+        .feat-desc  { font-size:0.78rem; color:var(--text-dim); line-height:1.7; }
+
+        /* ── Install ── */
+        .install-box {
+            background:var(--surface); border:1px solid var(--border-md); border-radius:var(--r2);
+            padding:28px 30px; display:flex; align-items:center;
+            justify-content:space-between; gap:24px; flex-wrap:wrap;
+        }
+        .install-box h3 { font-size:0.93rem; font-weight:600; margin-bottom:5px; letter-spacing:-0.01em; }
+        .install-box p  { font-size:0.78rem; color:var(--text-dim); }
+
+        .install-cmd {
+            display:flex; align-items:center; gap:10px;
+            background:var(--surface-3); border:1px solid var(--border-md); border-radius:var(--r);
+            padding:10px 16px; font-family:var(--mono); font-size:0.78rem; color:var(--text);
+        }
+        .cmd { color:var(--cyan); user-select:none; }
+        .copy-btn {
+            background:none; border:none; cursor:pointer; color:var(--text-muted);
+            font-family:var(--sans); font-size:0.72rem; transition:color .2s;
+        }
+        .copy-btn:hover { color:var(--cyan); }
+
+        /* ── Divider / Footer ── */
+        .divider { height:1px; background:var(--border); margin:0 5%; position:relative; z-index:1; }
+
+        footer {
+            position:relative; z-index:1; padding:34px 5%;
+            border-top:1px solid var(--border);
+            display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:20px;
+        }
+        .foot-links { display:flex; align-items:center; gap:24px; flex-wrap:wrap; }
+        .foot-links a { font-size:0.75rem; color:var(--text-muted); text-decoration:none; font-weight:500; transition:color .2s; }
+        .foot-links a:hover { color:var(--text); }
+        .copyright { font-size:0.72rem; color:var(--text-muted); }
+
+        /* ── Animations ── */
+        @keyframes up {
+            from { opacity:0; transform:translateY(16px); }
+            to   { opacity:1; transform:translateY(0); }
+        }
+        @keyframes blink {
+            0%,100% { opacity:1; } 50% { opacity:0.2; }
+        }
+        .reveal { opacity:0; transform:translateY(14px); transition:opacity .55s ease, transform .55s ease; }
+        .reveal.in { opacity:1; transform:translateY(0); }
+
+        /* ── Responsive ── */
+        @media (max-width:860px) {
+            nav { display:none; }
+            .code-wrap { grid-template-columns:1fr; }
+            .code-panel.right { border-left:none; border-top:1px solid var(--border); }
+            .feat-grid { grid-template-columns:1fr 1fr; }
+            .feat-cell:nth-child(3n) { border-right:1px solid var(--border); }
+            .feat-cell:nth-child(2n) { border-right:none !important; }
+        }
+        @media (max-width:520px) {
+            .feat-grid { grid-template-columns:1fr; }
+            .feat-cell { border-right:none !important; }
+            .stat-strip { flex-direction:column; }
+            .stat-item { border-right:none; border-bottom:1px solid var(--border); }
+            .stat-item:last-child { border-bottom:none; }
+            .hero h1 { font-size:2rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="amb amb-a"></div>
+<div class="amb amb-b"></div>
+
+<!-- Header -->
+<header>
+    <a href="#" class="logo">
+        <img src="./icon.png" alt="EveloDB">
+        <span class="logo-text">Evelo<em>DB</em></span>
+    </a>
+
+    <nav>
+        <a href="#features">Features</a>
+        <a href="#developer">SDK</a>
+        <a href="https://evelodb.evelocore.com/guide?section=1&topic=installation" target="_blank" rel="noopener">Docs</a>
+        <a href="https://evelodb.evelocore.com/guide?section=2&topic=installation">Install</a>
+    </nav>
+
+    <div class="hd-right">
+        <a href="https://github.com/evelocore-release/evelodb-server" target="_blank" rel="noopener" class="btn btn-ghost">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+            GitHub
+        </a>
+        <a href="/panel" class="btn btn-cyan">Dashboard →</a>
+    </div>
+</header>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="badge">
+        <span class="badge-dot"></span>
+        v1.4.4 — BSON Support Now Available
+    </div>
+
+    <h1>The database built for<br><em>developer velocity</em></h1>
+
+    <p class="hero-sub">
+        EveloDB is a high-performance, edge-ready JSON/BSON database. Sub-millisecond latency, a clean SDK, TCP &amp; HTTP transport, and a fully-featured admin panel — all out of the box.
+    </p>
+
+    <div class="hero-cta">
+        <a href="https://evelodb.evelocore.com/guide?section=1&topic=installation" target="_blank" rel="noopener" class="btn btn-cyan">Get Started →</a>
+        <a href="https://github.com/evelocore-release/evelodb-server" target="_blank" rel="noopener" class="btn btn-ghost">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+            View Source
+        </a>
+    </div>
+
+    <div class="stat-strip">
+        <div class="stat-item">
+            <div class="stat-val">&lt;<em>1</em>ms</div>
+            <div class="stat-label">Query Latency</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-val">ACID<em> ✓</em></div>
+            <div class="stat-label">Compliant</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-val">TCP<em>+</em>HTTP</div>
+            <div class="stat-label">Transport</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-val"><em>0</em> cfg</div>
+            <div class="stat-label">Configuration</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-val">MIT<em> ✓</em></div>
+            <div class="stat-label">Open Source</div>
+        </div>
+    </div>
+</section>
+
+<!-- SDK -->
+<section class="section" id="developer">
+    <div class="sec-eye">SDK</div>
+    <div class="sec-title">Simple by design</div>
+    <p class="sec-sub">Spend less time wrestling infrastructure. The EveloDB SDK is expressive, typed, and stays out of your way.</p>
+
+    <div class="code-wrap reveal">
+        <div class="code-panel">
+            <div class="panel-bar">
+                <div class="panel-dots"><div class="pd pd-r"></div><div class="pd pd-y"></div><div class="pd pd-g"></div></div>
+                <span class="panel-tag">query.ts</span>
+                <span class="panel-badge badge-pkg">evelodb-global</span>
+            </div>
+            <div class="code-body"><pre>
+<span class="k">import</span> eveloDB <span class="k">from</span> <span class="s">'evelodb-global'</span>
+
+<span class="k">const</span> db <span class="p">=</span> <span class="k">new</span> <span class="f">eveloDB</span><span class="p">({</span>
+    host<span class="p">:</span> <span class="s">'127.0.0.1'</span><span class="p">,</span>
+    port<span class="p">:</span> <span class="n">7962</span><span class="p">,</span>
+    user<span class="p">:</span> <span class="s">'...'</span><span class="p">,</span>
+    key<span class="p">:</span>  <span class="s">'...'</span>
+<span class="p">})</span>
+
+<span class="ak">async</span> <span class="k">function</span> <span class="f">find</span><span class="p">() {</span>
+    <span class="k">const</span> res <span class="p">=</span> <span class="ak">await</span> db<span class="p">.</span><span class="f">find</span><span class="p">(</span>
+        <span class="s">'users'</span><span class="p">,</span>
+        <span class="p">{</span> age<span class="p">:</span> <span class="p">{</span> <span class="s">$gte</span><span class="p">:</span> <span class="n">18</span> <span class="p">}</span> <span class="p">}</span>
+    <span class="p">)</span>
+    <span class="k">const</span> users <span class="p">=</span> res<span class="p">.</span>data<span class="p">.</span><span class="f">all</span><span class="p">()</span>
+
+    console<span class="p">.</span><span class="f">log</span><span class="p">(</span><span class="s">"Response:"</span><span class="p">,</span> res<span class="p">)</span>
+    console<span class="p">.</span><span class="f">log</span><span class="p">(</span><span class="s">"Users:"</span><span class="p">,</span> users<span class="p">)</span>
+<span class="p">}</span></pre></div>
+        </div>
+
+        <div class="code-panel right">
+            <div class="panel-bar">
+                <div class="panel-dots"><div class="pd pd-r"></div><div class="pd pd-y"></div><div class="pd pd-g"></div></div>
+                <span class="panel-tag">console output</span>
+                <span class="panel-badge badge-ok">200 OK</span>
+            </div>
+            <div class="code-body"><pre>
+<span class="c">// Response:</span>
+<span class="p">{</span>
+  success<span class="p">:</span>  <span class="ok">true</span><span class="p">,</span>
+  status<span class="p">:</span>   <span class="n">200</span><span class="p">,</span>
+  latency<span class="p">:</span>  <span class="lt">5</span><span class="p">,</span>    <span class="c">// ms</span>
+  data<span class="p">:</span>     QueryResult <span class="p">{...}</span>
+<span class="p">}</span>
+
+<span class="c">// Users:</span>
+<span class="p">[</span>
+  <span class="p">{</span> name<span class="p">:</span> <span class="s">'John Doe'</span><span class="p">,</span>    age<span class="p">:</span> <span class="n">19</span> <span class="p">},</span>
+  <span class="p">{</span> name<span class="p">:</span> <span class="s">'Jane Smith'</span><span class="p">,</span>  age<span class="p">:</span> <span class="n">18</span> <span class="p">},</span>
+  <span class="p">{</span> name<span class="p">:</span> <span class="s">'Bob Johnson'</span><span class="p">,</span> age<span class="p">:</span> <span class="n">22</span> <span class="p">}</span>
+<span class="p">]</span>
+</pre></div>
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- Features -->
+<section class="section" id="features">
+    <div class="sec-eye">Features</div>
+    <div class="sec-title">Engineered for excellence</div>
+    <p class="sec-sub">Everything needed to ship data-intensive applications without the operational overhead.</p>
+
+    <div class="feat-grid reveal">
+        <div class="feat-cell">
+            <div class="feat-icon">⚡</div>
+            <div class="feat-title">Sub-Millisecond Latency</div>
+            <p class="feat-desc">Optimized memory mapping delivers query responses under 1ms, even under sustained throughput.</p>
+        </div>
+        <div class="feat-cell">
+            <div class="feat-icon">💎</div>
+            <div class="feat-title">Native BSON Support</div>
+            <p class="feat-desc">Store complex nested structures with binary efficiency and full type safety — no schema required.</p>
+        </div>
+        <div class="feat-cell">
+            <div class="feat-icon">🛡️</div>
+            <div class="feat-title">ACID Compliant</div>
+            <p class="feat-desc">Strict transactional integrity ensures data is always consistent, isolated, and durable.</p>
+        </div>
+        <div class="feat-cell" style="border-bottom:none;">
+            <div class="feat-icon">🖥️</div>
+            <div class="feat-title">Built-in Admin Panel</div>
+            <p class="feat-desc">A fully-featured management UI ships out of the box. Monitor, query, and manage visually.</p>
+        </div>
+        <div class="feat-cell" style="border-bottom:none;">
+            <div class="feat-icon">🔗</div>
+            <div class="feat-title">TCP + HTTP Transport</div>
+            <p class="feat-desc">Raw TCP for high-throughput real-time workloads or HTTP for standard REST-style access.</p>
+        </div>
+        <div class="feat-cell" style="border-bottom:none;">
+            <div class="feat-icon">📦</div>
+            <div class="feat-title">Zero Configuration</div>
+            <p class="feat-desc">Running in seconds. No YAML sprawl, no provisioning scripts, no maintenance windows.</p>
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- Install -->
+<section class="section" id="install" style="padding-bottom:90px;">
+    <div class="sec-eye">Installation</div>
+    <div class="sec-title">Start in seconds</div>
+    <p class="sec-sub">Install via npm and connect immediately. No daemon setup, no config files to wrestle.</p>
+
+    <div class="install-box reveal">
+        <div>
+            <h3>Install the npm package</h3>
+            <p>Node.js 18+ · TypeScript ready · MIT licensed</p>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <div class="install-cmd">
+                <span class="cmd-$">$</span>
+                <span>npm install evelodb-global</span>
+                <button class="copy-btn" onclick="copyCmd(this)">⎘ copy</button>
+            </div>
+            <a href="https://evelodb.evelocore.com/guide?section=1&topic=installation" target="_blank" rel="noopener" class="btn btn-cyan" style="font-size:0.8rem;">
+                Read the Docs →
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer>
+    <a href="#" class="logo">
+        <img src="./icon.png" alt="EveloDB">
+        <span class="logo-text">Evelo<em>DB</em></span>
+    </a>
+    <div class="foot-links">
+        <a href="https://evelodb.evelocore.com/guide?section=1&topic=installation" target="_blank" rel="noopener">Docs</a>
+        <a href="https://github.com/evelocore-release/evelodb-server" target="_blank" rel="noopener">GitHub</a>
+        <a href="#">Benchmarks</a>
+        <a href="#">Security</a>
+        <a href="#">Contact</a>
+        <span class="copyright">© 2026 Evelocore · MIT License</span>
+    </div>
+</footer>
+
+<script>
+    const io = new IntersectionObserver(entries => {
+        entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold: 0.07 });
+    document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+    function copyCmd(btn) {
+        navigator.clipboard.writeText('npm install evelodb-global').then(() => {
+            btn.textContent = '✓ copied';
+            btn.style.color = 'var(--cyan)';
+            setTimeout(() => { btn.textContent = '⎘ copy'; btn.style.color = ''; }, 2000);
+        });
+    }
+</script>
+</body>
+</html>
