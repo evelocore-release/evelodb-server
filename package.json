@@ -1,26 +1,21 @@
 {
-  "name": "evelocore",
-  "version": "13.0",
-  "description": "Evelocore Production 2023 copyright.",
+  "name": "evelodb-server",
+  "version": "1.0.0",
+  "description": "EveloDB - A fast, lightweight TCP database server.",
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index"
   },
   "author": "Evelocore",
   "license": "ISC",
   "dependencies": {
-    "@heroicons/react": "^2.2.0",
-    "axios": "^1.10.0",
     "body-parser": "^1.20.2",
     "chalk": "^5.6.2",
-    "cheerio": "^1.0.0",
     "child_process": "^1.0.2",
-    "cookie": "^1.0.1",
     "cors": "^2.8.5",
-    "evelodb": "^1.4.9",
+    "evelodb": "^1.4.10",
     "express": "^4.19.2",
-    "hls.js": "^1.6.5",
     "multer": "^1.4.5-lts.1",
     "net": "^1.0.2",
     "os": "^0.1.2"
