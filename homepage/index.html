@@ -315,7 +315,7 @@
 <section class="hero">
     <div class="badge">
         <span class="badge-dot"></span>
-        v1.4.4 — BSON Support Now Available
+        <span id="v-text">v1.0.0 — Loading...</span>
     </div>
 
     <h1>The database built for<br><em>developer velocity</em></h1>
@@ -514,6 +514,16 @@
             setTimeout(() => { btn.textContent = '⎘ copy'; btn.style.color = ''; }, 2000);
         });
     }
+
+    fetch('https://cdn.evelocore.com/files/Evelocore/projects/evelodb-server/config.json')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('v-text').textContent = `v${data.version} — Latest Release Available`;
+        })
+        .catch(error => {
+            console.error('Failed to fetch server latest version:', error);
+            document.getElementById('v-text').textContent = `v1.0.0 — Stable Build`;
+        });
 </script>
 </body>
 </html>
